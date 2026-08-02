@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Student Portal — CampusShuttle</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<style>
+:root{--bg:#03080f;--s:#080f1e;--card:#0c1628;--b:#162236;--c1:#0ea5e9;--c2:#6366f1;--c3:#10b981;--red:#f43f5e;--y:#f59e0b;--text:#f0f6ff;--m:#4a6280;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;display:flex;}
+
+/* SIDEBAR */
+.sb{width:220px;flex-shrink:0;background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:10px;}
+.sb-logo .ic{font-size:20px;}
+.sb-logo .tx{font-size:13px;font-weight:800;letter-spacing:-.3px;}
+.sb-logo .sub{font-size:9px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.sb-nav{padding:8px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:2px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--m);border:none;background:none;width:100%;text-align:left;transition:all .15s;}
+.sb-item:hover{background:var(--card);color:var(--text);}
+.sb-item.on{background:rgba(14,165,233,.09);color:var(--c1);border:1px solid rgba(14,165,233,.15);}
+.sb-bot{margin-top:auto;padding:12px;border-top:1px solid var(--b);}
+.user-chip{display:flex;align-items:center;gap:9px;padding:10px;background:var(--card);border-radius:12px;margin-bottom:8px;}
+.av{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;}
+.u-n{font-size:12px;font-weight:700;}
+.u-r{font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace;}
+.logout{width:100%;padding:8px;border:1px solid var(--b);background:none;color:var(--m);border-radius:9px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;}
+.logout:hover{border-color:var(--red);color:var(--red);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.topbar{height:52px;flex-shrink:0;background:var(--s);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 20px;}
+.topbar .title{font-size:15px;font-weight:700;}
+.topbar .live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--m);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c3);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.content{flex:1;overflow-y:auto;padding:20px;}
+.panel{display:none;}.panel.on{display:block;}
+
+/* ── BOOKING FLOW ── */
+.booking-flow{max-width:860px;margin:0 auto;}
+.step-bar{display:flex;align-items:center;margin-bottom:28px;gap:0;}
+.step{display:flex;align-items:center;gap:8px;flex:1;}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--b);color:var(--m);flex-shrink:0;transition:all .3s;}
+.step.done .step-num{background:var(--c3);border-color:var(--c3);color:#fff;}
+.step.active .step-num{background:var(--c1);border-color:var(--c1);color:#fff;box-shadow:0 0 16px rgba(14,165,233,.4);}
+.step-label{font-size:12px;font-weight:600;color:var(--m);transition:color .3s;}
+.step.active .step-label,.step.done .step-label{color:var(--text);}
+.step-line{flex:1;height:1px;background:var(--b);max-width:60px;}
+.step-line.done{background:var(--c3);}
+
+/* Step panels */
+.step-panel{background:var(--card);border:1px solid var(--b);border-radius:20px;padding:28px;margin-bottom:16px;}
+.step-panel h2{font-size:17px;font-weight:700;margin-bottom:6px;}
+.step-panel p{font-size:13px;color:var(--m);margin-bottom:22px;}
+
+.stop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stop-card{background:var(--s);border:2px solid var(--b);border-radius:14px;padding:14px;cursor:pointer;transition:all .2s;text-align:center;}
+.stop-card:hover{border-color:var(--c1);background:rgba(14,165,233,.05);}
+.stop-card.sel{border-color:var(--c1);background:rgba(14,165,233,.1);}
+.stop-card.disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+.stop-icon{font-size:22px;margin-bottom:6px;}
+.stop-name{font-size:13px;font-weight:700;}
+
+/* Route Info card */
+.route-info{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:20px;margin-bottom:16px;}
+.route-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.route-from,.route-to{flex:1;text-align:center;padding:10px;background:var(--card);border-radius:10px;}
+.route-from .lbl,.route-to .lbl{font-size:10px;color:var(--m);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.route-from .val,.route-to .val{font-size:14px;font-weight:700;color:var(--c1);}
+.route-arrow{font-size:20px;color:var(--m);}
+.route-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.rstat{text-align:center;padding:10px;background:var(--card);border-radius:10px;}
+.rstat .lbl{font-size:10px;color:var(--m);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.rstat .val{font-size:18px;font-weight:800;}
+.rstat.fare .val{color:var(--c3);}
+.rstat.dist .val{color:var(--c1);}
+.rstat.time .val{color:var(--y);}
+
+/* Shuttle cards */
+.shuttle-cards{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.shuttle-pick{background:var(--s);border:2px solid var(--b);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px;}
+.shuttle-pick:hover{border-color:var(--c1);}
+.shuttle-pick.sel{border-color:var(--c1);background:rgba(14,165,233,.06);}
+.shuttle-badge{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(14,165,233,.2),rgba(99,102,241,.2));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.shuttle-info{flex:1;}
+.shuttle-name{font-size:14px;font-weight:700;}
+.shuttle-meta{font-size:11px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.shuttle-driver{font-size:12px;color:var(--text);margin-top:4px;font-weight:600;}
+.avail-bar{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.avail-track{flex:1;height:5px;background:var(--b);border-radius:3px;overflow:hidden;}
+.avail-fill{height:100%;border-radius:3px;transition:width .4s;}
+.avail-num{font-size:11px;font-family:'JetBrains Mono',monospace;}
+
+/* Confirm card */
+.confirm-card{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:20px;}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--b);}
+.confirm-row:last-child{border-bottom:none;}
+.confirm-row .k{font-size:12px;color:var(--m);font-weight:600;}
+.confirm-row .v{font-size:13px;font-weight:700;}
+
+/* Boarding pass */
+.boarding-pass{background:linear-gradient(135deg,var(--card),#0a1a30);border:1px solid rgba(14,165,233,.3);border-radius:20px;padding:28px;text-align:center;position:relative;overflow:hidden;}
+.boarding-pass::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(14,165,233,.08),transparent 70%);}
+.pass-badge{display:inline-block;padding:5px 16px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+.pass-badge.booked{background:rgba(14,165,233,.15);color:var(--c1);border:1px solid rgba(14,165,233,.3);}
+.pass-badge.on_board{background:rgba(16,185,129,.15);color:var(--c3);border:1px solid rgba(16,185,129,.3);}
+.pass-badge.completed{background:rgba(245,158,11,.1);color:var(--y);border:1px solid rgba(245,158,11,.25);}
+.pass-badge.cancelled{background:rgba(244,63,94,.1);color:var(--red);border:1px solid rgba(244,63,94,.25);}
+.pass-id{font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:500;letter-spacing:4px;color:var(--c1);margin:8px 0;}
+.pass-sub{font-size:11px;color:var(--m);margin-bottom:20px;}
+.pass-dashed{border:none;border-top:2px dashed rgba(14,165,233,.2);margin:16px 0;}
+.pass-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left;}
+.pass-cell{background:rgba(14,165,233,.05);border-radius:10px;padding:10px;}
+.pass-cell .k{font-size:10px;color:var(--m);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;}
+.pass-cell .v{font-size:13px;font-weight:700;}
+.pass-seat{margin-top:16px;display:inline-block;padding:8px 24px;border-radius:30px;border:2px solid rgba(14,165,233,.3);font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c1);}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:11px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;transition:all .15s;}
+.btn-p{background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;}
+.btn-p:hover{opacity:.9;}
+.btn-g{background:rgba(16,185,129,.12);color:var(--c3);border:1px solid rgba(16,185,129,.3);}
+.btn-g:hover{background:var(--c3);color:#000;}
+.btn-r{background:rgba(244,63,94,.1);color:var(--red);border:1px solid rgba(244,63,94,.25);}
+.btn-r:hover{background:var(--red);color:#fff;}
+.btn-ghost{background:var(--s);color:var(--m);border:1px solid var(--b);}
+.btn-ghost:hover{color:var(--text);}
+.btn-full{width:100%;margin-top:8px;padding:12px;}
+.btn-row{display:flex;gap:8px;margin-top:14px;}
+
+/* My bookings table */
+.bk-table{width:100%;border-collapse:collapse;}
+.bk-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--m);padding:8px 12px;border-bottom:1px solid var(--b);text-align:left;}
+.bk-table td{padding:10px 12px;border-bottom:1px solid rgba(22,34,54,.8);font-size:12px;vertical-align:middle;}
+.bk-table tr:last-child td{border-bottom:none;}
+.bk-table tr:hover td{background:rgba(14,165,233,.03);}
+.status-pill{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.status-pill.booked{background:rgba(14,165,233,.12);color:var(--c1);}
+.status-pill.on_board{background:rgba(16,185,129,.12);color:var(--c3);}
+.status-pill.completed{background:rgba(245,158,11,.1);color:var(--y);}
+.status-pill.cancelled{background:rgba(244,63,94,.1);color:var(--red);}
+
+/* Toast */
+.toasts{position:fixed;bottom:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:6px;}
+.toast{padding:11px 16px;border-radius:12px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--b);box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:280px;animation:tin .25s ease;}
+.toast.s{border-color:var(--c3);color:var(--c3);}
+.toast.e{border-color:var(--red);color:var(--red);}
+.toast.i{border-color:var(--c1);color:var(--c1);}
+@keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+</style>
+</head>
+<body>
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="ic">🚍</div>
+    <div><div class="tx">CampusShuttle</div><div class="sub">Student Portal</div></div>
+  </div>
+  <nav class="sb-nav">
+    <button class="sb-item on" onclick="showPanel('book',this)">🎫 Book Shuttle</button>
+    <button class="sb-item" onclick="showPanel('mybookings',this)">📋 My Bookings</button>
+    <button class="sb-item" onclick="showPanel('track',this)">📍 Track Booking</button>
+  </nav>
+  <div class="sb-bot">
+    <div class="user-chip">
+      <div class="av">{{ username[0].upper() }}</div>
+      <div><div class="u-n">{{ full_name or username }}</div><div class="u-r">student</div></div>
+    </div>
+    <button class="logout" onclick="location='/logout'">⏻ Sign Out</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="title" id="ptitle">🎫 Book Your Shuttle</div>
+    <div class="title" id="ptitle"> made by PUNIT 💖💖</div>
+    <div class="live"><div class="dot"></div> Live System</div>
+  </div>
+  <div class="content">
+
+<!-- ══ BOOK PANEL ══════════════════════════════════════ -->
+<div class="panel on" id="p-book">
+<div class="booking-flow">
+
+  <!-- Step bar -->
+  <div class="step-bar">
+    <div class="step active" id="s1"><div class="step-num">1</div><div class="step-label">Boarding Point</div></div>
+    <div class="step-line" id="l1"></div>
+    <div class="step" id="s2"><div class="step-num">2</div><div class="step-label">Destination</div></div>
+    <div class="step-line" id="l2"></div>
+    <div class="step" id="s3"><div class="step-num">3</div><div class="step-label">Choose Shuttle</div></div>
+    <div class="step-line" id="l3"></div>
+    <div class="step" id="s4"><div class="step-num">4</div><div class="step-label">Confirm & Pay</div></div>
+    <div class="step-line" id="l4"></div>
+    <div class="step" id="s5"><div class="step-num">5</div><div class="step-label">Boarding Pass</div></div>
+  </div>
+
+  <!-- STEP 1: Boarding point -->
+  <div class="step-panel" id="sp1">
+    <h2>📍 Select Your Boarding Point</h2>
+    <p>Choose the stop where you will board the shuttle.</p>
+    <div class="stop-grid" id="fromGrid"></div>
+  </div>
+
+  <!-- STEP 2: Destination -->
+  <div class="step-panel" id="sp2" style="display:none;">
+    <h2>🏁 Select Your Destination</h2>
+    <p>Where do you want to go? Boarding from: <strong id="fromLabel" style="color:var(--c1)">—</strong></p>
+    <div class="stop-grid" id="toGrid"></div>
+    <button class="btn btn-ghost" style="margin-top:14px;" onclick="goStep(1)">← Back</button>
+  </div>
+
+  <!-- STEP 3: Route info + choose shuttle -->
+  <div class="step-panel" id="sp3" style="display:none;">
+    <h2>🚌 Route Details & Available Shuttles</h2>
+    <p>Review fare and distance, then pick your shuttle.</p>
+    <div class="route-info" id="routeInfo"></div>
+    <div id="shuttleCards"></div>
+    <button class="btn btn-ghost" style="margin-top:12px;" onclick="goStep(2)">← Back</button>
+  </div>
+
+  <!-- STEP 4: Confirm -->
+  <div class="step-panel" id="sp4" style="display:none;">
+    <h2>✅ Confirm Booking</h2>
+    <p>Review your journey details before confirming.</p>
+    <div class="confirm-card" id="confirmCard"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-p" style="flex:1;padding:12px;" onclick="confirmBook()">Confirm & Get Boarding Pass →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Boarding pass -->
+  <div class="step-panel" id="sp5" style="display:none;">
+    <h2>🎟️ Your Boarding Pass</h2>
+    <p>Show this to the driver when boarding. Your unique boarding ID is below.</p>
+    <div id="boardingPassContainer"></div>
+    <div class="btn-row" style="justify-content:center;margin-top:16px;">
+      <button class="btn btn-p" onclick="showPanel('mybookings',document.querySelector('.sb-item:nth-child(2)'))">View All Bookings →</button>
+      <button class="btn btn-ghost" onclick="resetBooking()">+ Book Another</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══ MY BOOKINGS ══════════════════════════════════════ -->
+<div class="panel" id="p-mybookings">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;">📋 My Bookings</div>
+      <button class="btn btn-p btn-sm" onclick="loadMyBookings()" style="padding:7px 14px;font-size:12px;">↻ Refresh</button>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;overflow:hidden;">
+      <div style="overflow-x:auto;">
+        <table class="bk-table"><thead>
+          <tr><th>Boarding ID</th><th>Shuttle</th><th>From → To</th><th>Seat</th><th>Fare</th><th>Driver</th><th>Status</th><th>Booked At</th><th>Action</th></tr>
+        </thead><tbody id="mybookTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRACK ════════════════════════════════════════════ -->
+<div class="panel" id="p-track">
+  <div style="max-width:560px;margin:0 auto;">
+    <div style="background:var(--card);border:1px solid var(--b);border-radius:20px;padding:24px;">
+      <h2 style="font-size:16px;font-weight:700;margin-bottom:6px;">📍 Track Your Booking</h2>
+      <p style="font-size:13px;color:var(--m);margin-bottom:18px;">Enter your Boarding ID to see live status.</p>
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <input type="text" id="trackInput" placeholder="BRD-XXXXXX" style="flex:1;background:var(--s);border:1.5px solid var(--b);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;padding:11px 14px;border-radius:10px;outline:none;">
+        <button class="btn btn-p" onclick="trackBooking()">Track →</button>
+      </div>
+      <div id="trackResult"></div>
+    </div>
+    <!-- Latest booking quick track -->
+    <div id="latestTrack" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+const socket = io();
+let stops=[], selFrom='', selTo='', selShuttle=null, routeData=null;
+
+// ── navigation ────────────────────────────────────────────────────────────────
+const PTITLES = {book:'🎫 Book Your Shuttle', mybookings:'📋 My Bookings', track:'📍 Track Booking'};
+function showPanel(name, btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.getElementById('p-'+name)?.classList.add('on');
+  if(btn) btn.classList.add('on');
+  document.getElementById('ptitle').textContent = PTITLES[name]||name;
+  if(name==='mybookings') loadMyBookings();
+  if(name==='track') loadLatestTrack();
+}
+
+// ── toast ─────────────────────────────────────────────────────────────────────
+function toast(msg,t='i'){
+  const c=document.getElementById('toasts');
+  const d=document.createElement('div');d.className=`toast ${t}`;d.textContent=msg;c.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
+}
+
+// ── Step flow ─────────────────────────────────────────────────────────────────
+async function init(){
+  const r = await fetch('/api/stops');
+  stops = await r.json();
+  renderFromGrid();
+}
+
+function goStep(n){
+  for(let i=1;i<=5;i++){
+    document.getElementById(`sp${i}`).style.display = i===n?'block':'none';
+    const stepEl = document.getElementById(`s${i}`);
+    stepEl.classList.remove('active','done');
+    if(i<n) stepEl.classList.add('done');
+    if(i===n) stepEl.classList.add('active');
+    if(i<5){
+      const line = document.getElementById(`l${i}`);
+      line.classList.toggle('done', i<n);
+    }
+  }
+}
+
+// ── STEP 1: from stop ─────────────────────────────────────────────────────────
+function renderFromGrid(){
+  const ICONS = {"Gate A":"🚪","Library":"📚","Hostel Block":"🏠","Cafeteria":"🍽️","Tech Block":"💻","Sports Ground":"⚽","Admin Block":"🏛️","Medical":"🏥","Labs Complex":"🔬"};
+  document.getElementById('fromGrid').innerHTML = stops.map(s=>`
+    <div class="stop-card" onclick="selectFrom('${s.id}')">
+      <div class="stop-icon">${ICONS[s.id]||'📍'}</div>
+      <div class="stop-name">${s.id}</div>
+    </div>`).join('');
+}
+
+function selectFrom(name){
+  selFrom = name; selTo=''; selShuttle=null;
+  document.getElementById('fromLabel').textContent = name;
+  renderToGrid();
+  goStep(2);
+}
+
+// ── STEP 2: to stop ───────────────────────────────────────────────────────────
+function renderToGrid(){
+  const ICONS = {"Gate A":"🚪","Library":"📚","Hostel Block":"🏠","Cafeteria":"🍽️","Tech Block":"💻","Sports Ground":"⚽","Admin Block":"🏛️","Medical":"🏥","Labs Complex":"🔬"};
+  document.getElementById('toGrid').innerHTML = stops.map(s=>`
+    <div class="stop-card ${s.id===selFrom?'disabled':''}" onclick="selectTo('${s.id}')">
+      <div class="stop-icon">${ICONS[s.id]||'📍'}</div>
+      <div class="stop-name">${s.id}</div>
+    </div>`).join('');
+}
+
+async function selectTo(name){
+  selTo = name;
+  goStep(3);
+  loadRouteInfo();
+}
+
+// ── STEP 3: route + shuttles ──────────────────────────────────────────────────
+async function loadRouteInfo(){
+  document.getElementById('routeInfo').innerHTML = '<div style="color:var(--m);font-size:13px;">Loading route info...</div>';
+  document.getElementById('shuttleCards').innerHTML = '';
+  const r    = await fetch(`/api/route_info?from=${encodeURIComponent(selFrom)}&to=${encodeURIComponent(selTo)}`);
+  routeData  = await r.json();
+  if(routeData.error){
+    document.getElementById('routeInfo').innerHTML=`<div style="color:var(--red)">${routeData.error}</div>`;return;
+  }
+  document.getElementById('routeInfo').innerHTML = `
+    <div class="route-header">
+      <div class="route-from"><div class="lbl">From</div><div class="val">${selFrom}</div></div>
+      <div class="route-arrow">→</div>
+      <div class="route-to"><div class="lbl">To</div><div class="val">${selTo}</div></div>
+    </div>
+    <div class="route-stats">
+      <div class="rstat fare"><div class="lbl">Fare</div><div class="val">₹${routeData.fare}</div></div>
+      <div class="rstat dist"><div class="lbl">Distance</div><div class="val">${routeData.distance} km</div></div>
+      <div class="rstat time"><div class="lbl">Est. Time</div><div class="val">${routeData.duration} min</div></div>
+    </div>`;
+
+  const shuttles = routeData.shuttles||[];
+  if(!shuttles.length){
+    document.getElementById('shuttleCards').innerHTML='<div style="color:var(--m);font-size:13px;margin-top:12px;">No shuttles available right now.</div>';return;
+  }
+  document.getElementById('shuttleCards').innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px;">Available Shuttles</div>
+    <div class="shuttle-cards">${shuttles.map(s=>{
+      const pct = Math.round((s.booked/s.capacity)*100);
+      const fc  = pct>75?'var(--red)':pct>50?'var(--y)':'var(--c3)';
+      return `<div class="shuttle-pick" id="shcard-${s.id}" onclick="selectShuttle(${JSON.stringify(s).replace(/"/g,"'")})">
+        <div class="shuttle-badge">🚌</div>
+        <div class="shuttle-info">
+          <div class="shuttle-name">${s.name} <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--m)">${s.id}</span></div>
+          <div class="shuttle-driver">👤 ${s.driver} · 📞 ${s.driver_phone}</div>
+          <div class="shuttle-meta">${s.license} · ${s.model}</div>
+          <div class="avail-bar">
+            <div class="avail-track"><div class="avail-fill" style="width:${pct}%;background:${fc}"></div></div>
+            <div class="avail-num" style="color:${fc}">${s.available} seats free</div>
+          </div>
+        </div>
+        <div style="font-size:22px;">→</div>
+      </div>`;
+    }).join('')}</div>`;
+}
+
+function selectShuttle(sh){
+  selShuttle = typeof sh==='string'?JSON.parse(sh.replace(/'/g,'"')):sh;
+  document.querySelectorAll('.shuttle-pick').forEach(c=>c.classList.remove('sel'));
+  document.getElementById(`shcard-${selShuttle.id}`)?.classList.add('sel');
+  renderConfirm();
+  goStep(4);
+}
+
+// ── STEP 4: confirm ───────────────────────────────────────────────────────────
+function renderConfirm(){
+  const sh = selShuttle;
+  document.getElementById('confirmCard').innerHTML = `
+    <div class="confirm-row"><span class="k">📍 Boarding Point</span><span class="v">${selFrom}</span></div>
+    <div class="confirm-row"><span class="k">🏁 Destination</span><span class="v">${selTo}</span></div>
+    <div class="confirm-row"><span class="k">🚌 Shuttle</span><span class="v">${sh.name} (${sh.id})</span></div>
+    <div class="confirm-row"><span class="k">👤 Driver</span><span class="v">${sh.driver}</span></div>
+    <div class="confirm-row"><span class="k">📞 Driver Phone</span><span class="v">${sh.driver_phone}</span></div>
+    <div class="confirm-row"><span class="k">🚗 Vehicle</span><span class="v">${sh.model} · ${sh.license}</span></div>
+    <div class="confirm-row"><span class="k">📏 Distance</span><span class="v">${routeData.distance} km</span></div>
+    <div class="confirm-row"><span class="k">⏱ Est. Duration</span><span class="v">${routeData.duration} min</span></div>
+    <div class="confirm-row"><span class="k" style="color:var(--c3);font-size:14px;font-weight:700;">💰 Fare</span><span class="v" style="color:var(--c3);font-size:18px;">₹${routeData.fare}</span></div>`;
+}
+
+async function confirmBook(){
+  if(!selShuttle){toast('Select a shuttle first','e');return;}
+  const r = await fetch('/api/book',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({shuttle_id:selShuttle.id,from_stop:selFrom,to_stop:selTo})});
+  const d = await r.json();
+  if(!d.ok){toast(d.error||'Booking failed','e');return;}
+  renderBoardingPass(d.booking);
+  goStep(5);
+  toast('Booking confirmed! ✓','s');
+}
+
+// ── STEP 5: boarding pass ─────────────────────────────────────────────────────
+function renderBoardingPass(bk){
+  document.getElementById('boardingPassContainer').innerHTML = buildPassHTML(bk);
+}
+
+function buildPassHTML(bk){
+  const statusLabel={booked:'Confirmed',on_board:'On Board',completed:'Journey Complete',cancelled:'Cancelled'}[bk.status]||bk.status;
+  return `<div class="boarding-pass">
+    <span class="pass-badge ${bk.status}">${statusLabel}</span>
+    <div style="font-size:12px;color:var(--m);letter-spacing:1px;text-transform:uppercase;font-weight:700;">Boarding ID</div>
+    <div class="pass-id">${bk.boarding_id}</div>
+    <div class="pass-sub">Show this ID to your driver at the boarding point</div>
+    <div class="pass-dashed"></div>
+    <div class="pass-grid">
+      <div class="pass-cell"><div class="k">From</div><div class="v">${bk.from_stop}</div></div>
+      <div class="pass-cell"><div class="k">To</div><div class="v">${bk.to_stop}</div></div>
+      <div class="pass-cell"><div class="k">Shuttle</div><div class="v">${bk.shuttle_name||bk.shuttle_id}</div></div>
+      <div class="pass-cell"><div class="k">Driver</div><div class="v">${bk.driver_name||'—'}</div></div>
+      <div class="pass-cell"><div class="k">Distance</div><div class="v">${bk.distance} km</div></div>
+      <div class="pass-cell"><div class="k">Fare</div><div class="v" style="color:var(--c3)">₹${bk.fare}</div></div>
+    </div>
+    <div class="pass-seat">Seat No. ${bk.seat_no}</div>
+    <div style="margin-top:14px;font-size:11px;color:var(--m);">Booked: ${bk.booked_at?.slice(0,16)||'—'}</div>
+  </div>`;
+}
+
+function resetBooking(){
+  selFrom='';selTo='';selShuttle=null;routeData=null;
+  goStep(1);
+}
+
+// ── MY BOOKINGS ───────────────────────────────────────────────────────────────
+async function loadMyBookings(){
+  const r = await fetch('/api/my_bookings');
+  const bks = await r.json();
+  const tb  = document.getElementById('mybookTable');
+  if(!bks.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--m);padding:24px;">No bookings yet. Book your first shuttle!</td></tr>';return;}
+  tb.innerHTML = bks.map(b=>`<tr>
+    <td><span style="font-family:\'JetBrains Mono\',monospace;color:var(--c1);font-size:12px;">${b.boarding_id}</span></td>
+    <td style="font-weight:600;">${b.shuttle_name||b.shuttle_id}</td>
+    <td>${b.from_stop} → ${b.to_stop}</td>
+    <td style="font-family:\'JetBrains Mono\',monospace;text-align:center;">${b.seat_no}</td>
+    <td style="color:var(--c3);font-weight:700;">₹${b.fare}</td>
+    <td>${b.driver_name||'—'}</td>
+    <td><span class="status-pill ${b.status}">${b.status.replace('_',' ')}</span></td>
+    <td style="color:var(--m);font-size:11px;">${b.booked_at?.slice(0,16)||'—'}</td>
+    <td>${b.status==='booked'?`<button class="btn btn-r" style="padding:4px 10px;font-size:11px;" onclick="cancelBk('${b.boarding_id}')">Cancel</button>`:'—'}</td>
+  </tr>`).join('');
+}
+
+async function cancelBk(bid){
+  if(!confirm('Cancel this booking?')) return;
+  await fetch('/api/cancel_booking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({boarding_id:bid})});
+  toast('Booking cancelled','i');
+  loadMyBookings();
+}
+
+// ── TRACK ─────────────────────────────────────────────────────────────────────
+async function trackBooking(){
+  const bid = document.getElementById('trackInput').value.trim().toUpperCase();
+  if(!bid){toast('Enter a Boarding ID','e');return;}
+  const r = await fetch(`/api/booking_status/${bid}`);
+  const d = await r.json();
+  const el = document.getElementById('trackResult');
+  if(d.error){el.innerHTML=`<div style="color:var(--red);font-size:13px;">Booking not found.</div>`;return;}
+  el.innerHTML = buildPassHTML(d);
+}
+
+async function loadLatestTrack(){
+  const r   = await fetch('/api/my_bookings');
+  const bks = await r.json();
+  const el  = document.getElementById('latestTrack'); if(!el) return;
+  if(!bks.length){ el.innerHTML=''; return; }
+  const latest = bks[0];
+  el.innerHTML = `<div style="background:var(--card);border:1px solid var(--b);border-radius:16px;padding:18px;">
+    <div style="font-size:12px;color:var(--m);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Latest Booking</div>
+    ${buildPassHTML(latest)}
+  </div>`;
+  document.getElementById('trackInput').value = latest.boarding_id;
+}
+
+// ── Socket ────────────────────────────────────────────────────────────────────
+socket.on('booking_status', d => {
+  toast(`Your booking ${d.boarding_id}: ${d.status.replace('_',' ')}`, d.status==='on_board'?'s':'i');
+  loadMyBookings();
+  loadLatestTrack();
+});
+
+init();
+</script>
+</body>
+</html>

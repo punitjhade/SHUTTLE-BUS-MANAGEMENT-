@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CampusShuttle — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#03080f;--s:#080f1e;--card:#0c1628;--b:#162236;--c1:#0ea5e9;--c2:#6366f1;--c3:#10b981;--red:#f43f5e;--text:#f0f6ff;--m:#4a6280;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.bg{position:fixed;inset:0;z-index:0;}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.12;}
+.orb1{width:500px;height:500px;background:#0ea5e9;top:-150px;left:-150px;animation:f 7s ease-in-out infinite;}
+.orb2{width:400px;height:400px;background:#6366f1;bottom:-100px;right:-100px;animation:f 7s ease-in-out infinite .35s;}
+@keyframes f{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.grid-bg{position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(14,165,233,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(14,165,233,.03) 1px,transparent 1px);background-size:44px 44px;}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:440px;padding:16px;}
+
+.logo{text-align:center;margin-bottom:32px;}
+.bus{width:72px;height:72px;margin:0 auto 14px;background:linear-gradient(135deg,var(--c1),var(--c2));border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 0 60px rgba(14,165,233,.3);animation:bob 3s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.logo h1{font-size:30px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--c1),var(--c2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo p{color:var(--m);font-size:13px;margin-top:4px;font-family:'JetBrains Mono',monospace;}
+
+.card{background:var(--card);border:1px solid var(--b);border-radius:24px;padding:34px;box-shadow:0 32px 80px rgba(0,0,0,.5);}
+
+.tabs{display:flex;background:var(--s);border-radius:12px;padding:4px;gap:4px;margin-bottom:26px;}
+.tab{flex:1;padding:9px;border-radius:9px;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--m);cursor:pointer;transition:all .2s;background:none;}
+.tab.on{background:var(--b);color:var(--text);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--m);margin-bottom:7px;}
+.field input{width:100%;background:var(--s);border:1.5px solid var(--b);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;padding:12px 16px;border-radius:12px;outline:none;transition:all .2s;}
+.field input:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(14,165,233,.12);}
+.field input::placeholder{color:var(--m);}
+
+.btn-login{width:100%;padding:14px;border:none;border-radius:14px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;letter-spacing:.3px;transition:opacity .2s;}
+.btn-login:hover{opacity:.9;}
+
+.err{display:none;color:var(--red);font-size:12px;padding:10px 14px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:10px;margin-bottom:14px;}
+
+.demo{margin-top:18px;background:var(--s);border:1px solid var(--b);border-radius:14px;padding:14px;}
+.demo p{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--m);margin-bottom:10px;}
+.demo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.demo-row .cred{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c1);}
+.demo-row .role-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;margin-left:6px;}
+.role-tag.admin{background:rgba(99,102,241,.15);color:#818cf8;}
+.role-tag.driver{background:rgba(16,185,129,.15);color:#34d399;}
+.role-tag.student{background:rgba(14,165,233,.1);color:var(--c1);}
+.use-btn{padding:3px 11px;border:none;border-radius:7px;background:var(--b);color:var(--text);font-size:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;transition:background .15s;}
+.use-btn:hover{background:var(--c1);color:#fff;}
+</style>
+</head>
+<body>
+<div class="bg"><div class="orb orb1"></div><div class="orb orb2"></div></div>
+<div class="grid-bg"></div>
+<div class="wrap">
+  <div class="logo">
+    <div class="bus">🚍</div>
+    <h1>CampusShuttle</h1>
+    <p>Campus Bus Management System · v3.0</p>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab on" onclick="setTab(this,'student')">🎓 Student</button>
+      <button class="tab" onclick="setTab(this,'driver')">🚌 Driver</button>
+      <button class="tab" onclick="setTab(this,'admin')">🛡️ Admin</button>
+    </div>
+    <div class="err" id="err"></div>
+    <div class="field"><label>Username</label><input id="un" type="text" placeholder="Enter username" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="pw" type="password" placeholder="Enter password"></div>
+    <button class="btn-login" onclick="go()">Sign In →</button>
+    <div class="demo">
+      <p>Quick Access</p>
+      <div class="demo-row"><span><span class="cred">admin / admin123</span><span class="role-tag admin">Admin</span></span><button class="use-btn" onclick="f('admin','admin123')">Use</button></div>
+      <div class="demo-row"><span><span class="cred">driver1 / driver123</span><span class="role-tag driver">Driver</span></span><button class="use-btn" onclick="f('driver1','driver123')">Use</button></div>
+      <div class="demo-row"><span><span class="cred">driver2 / driver456</span><span class="role-tag driver">Driver</span></span><button class="use-btn" onclick="f('driver2','driver456')">Use</button></div>
+      <div class="demo-row"><span><span class="cred">student1 / student123</span><span class="role-tag student">Student</span></span><button class="use-btn" onclick="f('student1','student123')">Use</button></div>
+      <div class="demo-row"><span><span class="cred">alice / alice123</span><span class="role-tag student">Student</span></span><button class="use-btn" onclick="f('alice','alice123')">Use</button></div>
+    </div>
+  </div>
+</div>
+<script>
+let role='student';
+function setTab(el,r){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');role=r;}
+function f(u,p){document.getElementById('un').value=u;document.getElementById('pw').value=p;}
+async function go(){
+  const u=document.getElementById('un').value.trim(), p=document.getElementById('pw').value;
+  const e=document.getElementById('err');e.style.display='none';
+  if(!u||!p){e.textContent='Enter username and password.';e.style.display='block';return;}
+  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+  const d=await r.json();
+  if(d.ok) window.location=d.role==='admin'?'/admin':d.role==='driver'?'/driver':'/student';
+  else{e.textContent=d.message||'Invalid credentials';e.style.display='block';}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+</script>
+</body>
+</html>

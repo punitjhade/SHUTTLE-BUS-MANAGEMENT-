@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Driver Portal — CampusShuttle</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<style>
+:root{--bg:#020b08;--s:#060f0b;--card:#081510;--b:#0f2318;--c1:#10b981;--c2:#34d399;--c3:#0ea5e9;--red:#f43f5e;--y:#f59e0b;--text:#ecfdf5;--m:#3d6b56;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;display:flex;}
+
+.sb{width:230px;flex-shrink:0;background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid var(--b);}
+.sb-logo .top{display:flex;align-items:center;gap:10px;}
+.sb-logo .ic{font-size:22px;}
+.sb-logo .tx{font-size:13px;font-weight:800;}
+.sb-logo .sub{font-size:9px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.shuttle-panel{margin:10px;background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px;}
+.shuttle-id{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:var(--c1);}
+.shuttle-nm{font-size:13px;font-weight:700;margin-bottom:6px;}
+.sh-meta{font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;line-height:1.6;}
+.status-ctrl{margin-top:10px;}
+.status-ctrl label{font-size:10px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px;}
+.status-btns{display:flex;flex-direction:column;gap:5px;}
+.s-btn{padding:7px 10px;border-radius:8px;border:1px solid var(--b);background:none;color:var(--m);font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;text-align:left;}
+.s-btn.active-status{border-color:var(--c1);background:rgba(16,185,129,.1);color:var(--c1);}
+.s-btn:hover:not(.active-status){background:var(--b);color:var(--text);}
+
+.sb-nav{padding:8px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:2px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--m);border:none;background:none;width:100%;text-align:left;transition:all .15s;}
+.sb-item:hover{background:var(--card);color:var(--text);}
+.sb-item.on{background:rgba(16,185,129,.09);color:var(--c1);border:1px solid rgba(16,185,129,.15);}
+
+.sb-bot{margin-top:auto;padding:12px;border-top:1px solid var(--b);}
+.user-chip{display:flex;align-items:center;gap:9px;padding:10px;background:var(--card);border-radius:12px;margin-bottom:8px;}
+.av{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#000;}
+.u-n{font-size:12px;font-weight:700;}
+.u-r{font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace;}
+.logout{width:100%;padding:8px;border:1px solid var(--b);background:none;color:var(--m);border-radius:9px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;}
+.logout:hover{border-color:var(--red);color:var(--red);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.topbar{height:52px;flex-shrink:0;background:var(--s);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 20px;}
+.topbar .title{font-size:15px;font-weight:700;}
+.live-pill{display:flex;align-items:center;gap:7px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--m);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c1);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.content{flex:1;overflow-y:auto;padding:20px;}
+.panel{display:none;}.panel.on{display:block;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.stat{background:var(--card);border:1px solid var(--b);border-radius:13px;padding:14px;}
+.stat .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);margin-bottom:5px;}
+.stat .val{font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px;}
+.stat.c1 .val{color:var(--c1)}.stat.c3 .val{color:var(--c3)}.stat.red .val{color:var(--red)}.stat.y .val{color:var(--y)}
+
+/* Manifest */
+.manifest-card{background:var(--card);border:1px solid var(--b);border-radius:18px;overflow:hidden;}
+.manifest-hdr{padding:16px 20px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;}
+.manifest-hdr h2{font-size:15px;font-weight:700;}
+.search-bar{display:flex;align-items:center;gap:8px;}
+.search-bar input{background:var(--s);border:1px solid var(--b);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:7px 12px;border-radius:9px;outline:none;width:180px;}
+.search-bar input:focus{border-color:var(--c1);}
+
+/* Passenger rows */
+.pass-list{padding:0 16px 16px;}
+.pass-stop-hdr{padding:12px 4px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--m);border-bottom:1px solid var(--b);margin-bottom:6px;}
+.pax-row{display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:6px;border-radius:12px;border:1px solid var(--b);background:var(--s);transition:all .2s;}
+.pax-row.on_board{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.04);}
+.pax-row.completed{border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.03);opacity:.7;}
+.seat-tag{width:36px;height:36px;border-radius:9px;background:var(--b);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;flex-shrink:0;}
+.pax-row.on_board .seat-tag{background:rgba(16,185,129,.15);color:var(--c1);}
+.pax-info{flex:1;}
+.pax-name{font-size:13px;font-weight:700;}
+.pax-meta{font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.pax-bid{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c3);letter-spacing:.5px;}
+.pax-status{flex-shrink:0;}
+.status-pill{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.status-pill.booked{background:rgba(14,165,233,.12);color:var(--c3);}
+.status-pill.on_board{background:rgba(16,185,129,.12);color:var(--c1);}
+.status-pill.completed{background:rgba(245,158,11,.1);color:var(--y);}
+.pax-actions{display:flex;gap:6px;flex-shrink:0;}
+.btn{padding:7px 14px;border-radius:9px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;transition:all .15s;}
+.btn-board{background:rgba(16,185,129,.12);color:var(--c1);border:1px solid rgba(16,185,129,.3);}
+.btn-board:hover{background:var(--c1);color:#000;}
+.btn-term{background:rgba(245,158,11,.1);color:var(--y);border:1px solid rgba(245,158,11,.25);}
+.btn-term:hover{background:var(--y);color:#000;}
+.btn-sm{padding:5px 10px;font-size:11px;}
+
+/* Quick scan */
+.scan-box{background:var(--card);border:1px solid var(--b);border-radius:16px;padding:18px;margin-bottom:16px;}
+.scan-box h3{font-size:14px;font-weight:700;margin-bottom:4px;}
+.scan-box p{font-size:12px;color:var(--m);margin-bottom:12px;}
+.scan-row{display:flex;gap:8px;}
+.scan-row input{flex:1;background:var(--s);border:1.5px solid var(--b);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;padding:10px 14px;border-radius:10px;outline:none;text-transform:uppercase;}
+.scan-row input:focus{border-color:var(--c1);}
+.scan-result{margin-top:12px;padding:12px;border-radius:10px;display:none;font-size:13px;}
+.scan-result.found{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);display:block;}
+.scan-result.notfound{background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.2);display:block;color:var(--red);}
+
+/* Log panel */
+.log-table{width:100%;border-collapse:collapse;}
+.log-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);padding:8px 12px;border-bottom:1px solid var(--b);text-align:left;}
+.log-table td{padding:9px 12px;border-bottom:1px solid rgba(15,35,24,.8);font-size:12px;}
+
+/* Toast */
+.toasts{position:fixed;bottom:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:6px;}
+.toast{padding:11px 16px;border-radius:12px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--b);box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:280px;animation:tin .25s ease;}
+.toast.s{border-color:var(--c1);color:var(--c1);}
+.toast.e{border-color:var(--red);color:var(--red);}
+.toast.i{border-color:var(--c3);color:var(--c3);}
+@keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+</style>
+</head>
+<body>
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="top">
+      <div class="ic">🚌</div>
+      <div><div class="tx">Driver Portal</div><div class="sub">CampusShuttle v3.0</div></div>
+    </div>
+  </div>
+
+  <!-- Shuttle info panel -->
+  <div class="shuttle-panel" id="myShuttlePanel">
+    <div style="color:var(--m);font-size:12px;">Loading shuttle...</div>
+  </div>
+
+  <nav class="sb-nav">
+    <button class="sb-item on" onclick="nav('manifest',this)">📋 Passenger Manifest</button>
+       <button class="sb-item on" onclick="nav('manifest',this)">made by PUNIT 💖💖 </button>
+    <button class="sb-item" onclick="nav('scan',this)">🔍 Quick Scan</button>
+    <button class="sb-item" onclick="nav('log',this)">📝 Trip Log</button>
+  </nav>
+  <div class="sb-bot">
+    <div class="user-chip">
+      <div class="av">{{ username[0].upper() }}</div>
+      <div><div class="u-n">{{ full_name or username }}</div><div class="u-r">driver</div></div>
+    </div>
+    <button class="logout" onclick="location='/logout'">⏻ Sign Out</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="title" id="ptitle">📋 Passenger Manifest</div>
+    <div class="live-pill"><div class="dot"></div> Live · Auto-refresh</div>
+  </div>
+  <div class="content">
+
+<!-- ══ MANIFEST ══════════════════════════════════════════ -->
+<div class="panel on" id="p-manifest">
+  <div class="stats-row">
+    <div class="stat c1"><div class="lbl">Total Booked</div><div class="val" id="st-total">0</div></div>
+    <div class="stat c3"><div class="lbl">On Board</div><div class="val" id="st-onboard">0</div></div>
+    <div class="stat y"><div class="lbl">Waiting</div><div class="val" id="st-waiting">0</div></div>
+    <div class="stat red"><div class="lbl">Completed</div><div class="val" id="st-done">0</div></div>
+  </div>
+  <div class="manifest-card">
+    <div class="manifest-hdr">
+      <h2>🚌 Passenger List</h2>
+      <div class="search-bar">
+        <input type="text" id="searchPax" placeholder="Search name / ID..." oninput="filterPassengers()">
+        <button class="btn" style="background:rgba(16,185,129,.1);color:var(--c1);border:1px solid rgba(16,185,129,.2);font-size:11px;" onclick="loadManifest()">↻</button>
+      </div>
+    </div>
+    <div class="pass-list" id="manifestList"><div style="padding:20px;color:var(--m);font-size:13px;">Loading passengers...</div></div>
+  </div>
+</div>
+
+<!-- ══ QUICK SCAN ════════════════════════════════════════ -->
+<div class="panel" id="p-scan">
+  <div style="max-width:500px;">
+    <div class="scan-box">
+      <h3>🔍 Quick Boarding ID Check</h3>
+      <p>Enter or paste the passenger's Boarding ID to verify and mark them.</p>
+      <div class="scan-row">
+        <input type="text" id="scanInput" placeholder="BRD-XXXXXX" oninput="this.value=this.value.toUpperCase()">
+        <button class="btn btn-board" onclick="scanPassenger()">Check →</button>
+      </div>
+      <div id="scanResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOG ═══════════════════════════════════════════════ -->
+<div class="panel" id="p-log">
+  <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--b);font-size:14px;font-weight:700;">📝 Today's Boarding Log</div>
+    <div style="overflow-x:auto;">
+      <table class="log-table">
+        <thead><tr><th>Boarding ID</th><th>Passenger</th><th>From → To</th><th>Seat</th><th>Action</th><th>Time</th></tr></thead>
+        <tbody id="logBody"><tr><td colspan="6" style="text-align:center;color:var(--m);padding:20px;">No actions yet today.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const socket = io();
+let myShuttle = {{ shuttle | tojson if shuttle else 'null' }};
+let allPassengers = [];
+
+// ── Nav ───────────────────────────────────────────────────────────────────────
+const PTITLES={manifest:'📋 Passenger Manifest',scan:'🔍 Quick Scan',log:'📝 Trip Log'};
+function nav(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.getElementById('p-'+name)?.classList.add('on');
+  btn.classList.add('on');
+  document.getElementById('ptitle').textContent=PTITLES[name]||name;
+  if(name==='log') loadLog();
+}
+
+function toast(msg,t='i'){
+  const c=document.getElementById('toasts');
+  const d=document.createElement('div');d.className=`toast ${t}`;d.textContent=msg;c.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init(){
+  renderShuttlePanel();
+  loadManifest();
+  setInterval(loadManifest, 8000);
+}
+
+function renderShuttlePanel(){
+  const el=document.getElementById('myShuttlePanel'); if(!el) return;
+  if(!myShuttle){el.innerHTML='<div style="color:var(--red);font-size:12px;">No shuttle assigned to you.</div>';return;}
+  const statusColors={idle:'var(--m)',running:'var(--c1)',at_stop:'var(--c2)',off_duty:'var(--red)'};
+  const sc=statusColors[myShuttle.status]||'var(--m)';
+  el.innerHTML=`
+    <div class="shuttle-id">${myShuttle.id}</div>
+    <div class="shuttle-nm">${myShuttle.name}</div>
+    <div class="sh-meta">
+      🚗 ${myShuttle.model||'—'}<br>
+      🔑 ${myShuttle.license_plate||'—'}<br>
+      📍 ${myShuttle.current_stop||'—'}<br>
+      <span style="color:${sc};font-weight:700">● ${myShuttle.status?.replace('_',' ').toUpperCase()||'IDLE'}</span>
+    </div>
+    <div class="status-ctrl">
+      <label>Update Status</label>
+      <div class="status-btns">
+        ${['idle','running','at_stop','off_duty'].map(s=>`
+          <button class="s-btn ${myShuttle.status===s?'active-status':''}" onclick="setStatus('${s}',this)">
+           ${({'idle':'⏸ Idle','running':'▶ Running','at_stop':'🚏 At Stop','off_duty':'🔴 Off Duty'})[s]}
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+async function setStatus(status, btn){
+  if(!myShuttle) return;
+  const stop = prompt('Current stop (leave blank to keep):', myShuttle.current_stop||'') || myShuttle.current_stop;
+  const r = await fetch('/api/driver/shuttle_status',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({shuttle_id:myShuttle.id,status,current_stop:stop})});
+  if((await r.json()).ok){
+    myShuttle.status=status; myShuttle.current_stop=stop;
+    document.querySelectorAll('.s-btn').forEach(b=>b.classList.remove('active-status'));
+    btn.classList.add('active-status');
+    toast(`Status: ${status}`,'s');
+    renderShuttlePanel();
+  }
+}
+
+// ── Manifest ──────────────────────────────────────────────────────────────────
+async function loadManifest(){
+  if(!myShuttle) return;
+  const r = await fetch(`/api/driver/manifest?shuttle_id=${myShuttle.id}`);
+  allPassengers = await r.json();
+  renderManifest(allPassengers);
+  updateStats(allPassengers);
+}
+
+function updateStats(passengers){
+  const total   = passengers.length;
+  const onBoard = passengers.filter(p=>p.status==='on_board').length;
+  const waiting = passengers.filter(p=>p.status==='booked').length;
+  const done    = passengers.filter(p=>p.status==='completed').length;
+  document.getElementById('st-total').textContent   = total;
+  document.getElementById('st-onboard').textContent = onBoard;
+  document.getElementById('st-waiting').textContent = waiting;
+  document.getElementById('st-done').textContent    = done;
+}
+
+function renderManifest(passengers){
+  const el=document.getElementById('manifestList'); if(!el) return;
+  if(!passengers.length){
+    el.innerHTML='<div style="padding:24px;text-align:center;color:var(--m);">No passengers booked for this shuttle yet.</div>';
+    return;
+  }
+
+  // Group by from_stop
+  const grouped={};
+  passengers.forEach(p=>{
+    if(!grouped[p.from_stop]) grouped[p.from_stop]=[];
+    grouped[p.from_stop].push(p);
+  });
+
+  el.innerHTML = Object.entries(grouped).map(([stop,paxList])=>`
+    <div class="pass-stop-hdr">📍 Boarding at: ${stop} (${paxList.length} passengers)</div>
+    ${paxList.map(p=>buildPaxRow(p)).join('')}
+  `).join('');
+}
+
+function buildPaxRow(p){
+  const actions = p.status==='booked'
+    ? `<button class="btn btn-board btn-sm" onclick="boardPax('${p.boarding_id}')">✓ Board</button>`
+    : p.status==='on_board'
+    ? `<button class="btn btn-term btn-sm" onclick="terminatePax('${p.boarding_id}')">🏁 Terminate</button>`
+    : '<span style="font-size:11px;color:var(--y)">Done</span>';
+
+  return `<div class="pax-row ${p.status}" id="paxrow-${p.boarding_id}">
+    <div class="seat-tag">${p.seat_no}</div>
+    <div class="pax-info">
+      <div class="pax-name">${p.student_name}</div>
+      <div class="pax-meta">${p.from_stop} → ${p.to_stop}</div>
+      <div class="pax-bid">${p.boarding_id}</div>
+    </div>
+    <div class="pax-status"><span class="status-pill ${p.status}">${p.status.replace('_',' ')}</span></div>
+    <div class="pax-actions">${actions}</div>
+  </div>`;
+}
+
+function filterPassengers(){
+  const q = document.getElementById('searchPax').value.toLowerCase();
+  if(!q){ renderManifest(allPassengers); return; }
+  renderManifest(allPassengers.filter(p=>
+    p.student_name.toLowerCase().includes(q) ||
+    p.boarding_id.toLowerCase().includes(q) ||
+    p.from_stop.toLowerCase().includes(q) ||
+    p.to_stop.toLowerCase().includes(q)
+  ));
+}
+
+async function boardPax(bid){
+  const r=await fetch('/api/driver/board',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({boarding_id:bid})});
+  if((await r.json()).ok){
+    toast(`${bid} — Boarded ✓`,'s');
+    loadManifest();
+  }
+}
+
+async function terminatePax(bid){
+  const r=await fetch('/api/driver/terminate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({boarding_id:bid})});
+  if((await r.json()).ok){
+    toast(`${bid} — Passenger Terminated`,'i');
+    loadManifest();
+  }
+}
+
+// ── Quick Scan ────────────────────────────────────────────────────────────────
+async function scanPassenger(){
+  const bid = document.getElementById('scanInput').value.trim();
+  if(!bid) return;
+  const pax = allPassengers.find(p=>p.boarding_id===bid);
+  const res = document.getElementById('scanResult');
+  if(!pax){
+    res.className='scan-result notfound';
+    res.innerHTML='❌ Boarding ID not found in this shuttle manifest.';
+    return;
+  }
+  res.className='scan-result found';
+  res.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:14px;font-weight:700;">${pax.student_name}</div>
+        <div style="font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;">${pax.from_stop} → ${pax.to_stop} · Seat ${pax.seat_no}</div>
+        <div style="margin-top:4px;"><span class="status-pill ${pax.status}">${pax.status.replace('_',' ')}</span></div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        ${pax.status==='booked'?`<button class="btn btn-board" onclick="boardPax('${bid}');document.getElementById('scanResult').style.display='none';">✓ Board</button>`:''}
+        ${pax.status==='on_board'?`<button class="btn btn-term" onclick="terminatePax('${bid}');document.getElementById('scanResult').style.display='none';">🏁 Terminate</button>`:''}
+      </div>
+    </div>`;
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+async function loadLog(){
+  if(!myShuttle) return;
+  // Refetch full manifest to show completed too
+  const r = await fetch(`/api/driver/manifest?shuttle_id=${myShuttle.id}`);
+  const all = await r.json();
+  const tb = document.getElementById('logBody');
+  if(!all.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--m);padding:20px;">No trips logged.</td></tr>';return;}
+  tb.innerHTML=all.map(p=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;color:var(--c3);font-size:11px;">${p.boarding_id}</td>
+    <td style="font-weight:600;">${p.student_name}</td>
+    <td>${p.from_stop} → ${p.to_stop}</td>
+    <td style="text-align:center;font-family:'JetBrains Mono',monospace;">${p.seat_no}</td>
+    <td><span class="status-pill ${p.status}">${p.status.replace('_',' ')}</span></td>
+    <td style="color:var(--m);font-size:11px;">${(p.boarded_at||p.booked_at||'—').slice(0,16)}</td>
+  </tr>`).join('');
+}
+
+// ── Socket ────────────────────────────────────────────────────────────────────
+socket.on('booking_update', ()=>{ loadManifest(); toast('New booking!','i'); });
+socket.on('manifest_update', d=>{ loadManifest(); });
+
+init();
+</script>
+</body>
+</html>

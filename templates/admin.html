@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin Portal — CampusShuttle</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#07030f;--s:#0d0618;--card:#120922;--b:#1e1035;--c1:#8b5cf6;--c2:#a78bfa;--c3:#10b981;--c4:#0ea5e9;--red:#f43f5e;--y:#f59e0b;--text:#f5f0ff;--m:#5a4a7a;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;display:flex;}
+
+.sb{width:220px;flex-shrink:0;background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:10px;}
+.sb-logo .ic{font-size:20px;}
+.sb-logo .tx{font-size:13px;font-weight:800;}
+.sb-logo .sub{font-size:9px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.sb-nav{padding:8px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:2px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--m);border:none;background:none;width:100%;text-align:left;transition:all .15s;}
+.sb-item:hover{background:var(--card);color:var(--text);}
+.sb-item.on{background:rgba(139,92,246,.09);color:var(--c1);border:1px solid rgba(139,92,246,.15);}
+.sb-item .dot{margin-left:auto;width:7px;height:7px;background:var(--red);border-radius:50%;display:none;}
+.sb-item.has-dot .dot{display:block;}
+.sb-bot{margin-top:auto;padding:12px;border-top:1px solid var(--b);}
+.user-chip{display:flex;align-items:center;gap:9px;padding:10px;background:var(--card);border-radius:12px;margin-bottom:8px;}
+.av{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;}
+.u-n{font-size:12px;font-weight:700;}
+.u-r{font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace;}
+.logout{width:100%;padding:8px;border:1px solid var(--b);background:none;color:var(--m);border-radius:9px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;}
+.logout:hover{border-color:var(--red);color:var(--red);}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.topbar{height:52px;flex-shrink:0;background:var(--s);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 20px;}
+.topbar .title{font-size:15px;font-weight:700;}
+.live-pill{display:flex;align-items:center;gap:7px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--m);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c3);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.content{flex:1;overflow-y:auto;padding:20px;}
+.panel{display:none;}.panel.on{display:block;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:var(--card);border:1px solid var(--b);border-radius:13px;padding:14px;}
+.stat .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);margin-bottom:5px;}
+.stat .val{font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px;}
+.stat .sub{font-size:10px;color:var(--m);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.stat.c1 .val{color:var(--c1)}.stat.c3 .val{color:var(--c3)}.stat.c4 .val{color:var(--c4)}.stat.y .val{color:var(--y)}.stat.red .val{color:var(--red)}
+
+/* SHUTTLE PANELS GRID */
+.shuttle-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;}
+.shuttle-panel{background:var(--card);border:1px solid var(--b);border-radius:18px;overflow:hidden;}
+.sh-panel-hdr{padding:14px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px;}
+.sh-badge{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(14,165,233,.2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.sh-hdr-info{flex:1;}
+.sh-id{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--c1);font-weight:500;}
+.sh-name{font-size:14px;font-weight:700;}
+.sh-avail{display:flex;align-items:center;gap:8px;}
+.avail-track{width:80px;height:5px;background:var(--b);border-radius:3px;overflow:hidden;}
+.avail-fill{height:100%;border-radius:3px;transition:width .4s;}
+.avail-num{font-size:11px;font-family:'JetBrains Mono',monospace;}
+.status-tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.status-tag.idle{background:rgba(90,74,122,.2);color:var(--m);}
+.status-tag.running{background:rgba(139,92,246,.12);color:var(--c1);}
+.status-tag.at_stop{background:rgba(16,185,129,.1);color:var(--c3);}
+.status-tag.off_duty{background:rgba(244,63,94,.1);color:var(--red);}
+
+/* Driver info section */
+.driver-section{padding:12px 16px;border-bottom:1px solid var(--b);background:rgba(139,92,246,.03);}
+.driver-row{display:flex;align-items:center;gap:10px;}
+.driver-av{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(14,165,233,.3));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--c1);}
+.driver-info .name{font-size:13px;font-weight:700;}
+.driver-info .meta{font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.sh-ctrl{margin-left:auto;display:flex;gap:6px;}
+.btn-sm{padding:5px 10px;border-radius:7px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;transition:all .15s;}
+.btn-run{background:rgba(16,185,129,.1);color:var(--c3);border:1px solid rgba(16,185,129,.25);}
+.btn-run:hover{background:var(--c3);color:#000;}
+.btn-stop{background:rgba(245,158,11,.1);color:var(--y);border:1px solid rgba(245,158,11,.25);}
+.btn-stop:hover{background:var(--y);color:#000;}
+.btn-off{background:rgba(244,63,94,.1);color:var(--red);border:1px solid rgba(244,63,94,.25);}
+.btn-off:hover{background:var(--red);color:#fff;}
+
+/* Passenger manifest in shuttle panel */
+.pax-mini-list{padding:10px 16px;max-height:280px;overflow-y:auto;}
+.pax-mini{display:flex;align-items:center;gap:10px;padding:9px;border-radius:10px;margin-bottom:4px;background:var(--s);border:1px solid var(--b);transition:all .2s;}
+.pax-mini.on_board{border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.04);}
+.pax-mini.completed{opacity:.55;}
+.seat-mini{width:28px;height:28px;border-radius:7px;background:var(--b);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--m);flex-shrink:0;}
+.pax-mini.on_board .seat-mini{background:rgba(16,185,129,.15);color:var(--c3);}
+.pax-mini-info{flex:1;}
+.pax-mini-name{font-size:12px;font-weight:700;}
+.pax-mini-route{font-size:10px;color:var(--m);font-family:'JetBrains Mono',monospace;}
+.pax-mini-bid{font-size:10px;color:var(--c4);font-family:'JetBrains Mono',monospace;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.status-dot.booked{background:var(--c4);}
+.status-dot.on_board{background:var(--c3);}
+.status-dot.completed{background:var(--y);}
+.sh-footer{padding:10px 16px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--m);font-family:'JetBrains Mono',monospace;}
+
+/* All Bookings Table */
+.bk-table{width:100%;border-collapse:collapse;}
+.bk-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);padding:8px 12px;border-bottom:1px solid var(--b);text-align:left;}
+.bk-table td{padding:9px 12px;border-bottom:1px solid rgba(30,16,53,.8);font-size:12px;vertical-align:middle;}
+.bk-table tr:last-child td{border-bottom:none;}
+.bk-table tr:hover td{background:rgba(139,92,246,.03);}
+.spill{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.spill.booked{background:rgba(14,165,233,.12);color:var(--c4);}
+.spill.on_board{background:rgba(16,185,129,.12);color:var(--c3);}
+.spill.completed{background:rgba(245,158,11,.1);color:var(--y);}
+.spill.cancelled{background:rgba(244,63,94,.1);color:var(--red);}
+
+/* Chart */
+.chart-wrap{height:200px;position:relative;}
+
+/* Toast */
+.toasts{position:fixed;bottom:18px;right:18px;z-index:999;display:flex;flex-direction:column;gap:6px;}
+.toast{padding:11px 16px;border-radius:12px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--b);box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:280px;animation:tin .25s ease;}
+.toast.s{border-color:var(--c3);color:var(--c3);}
+.toast.e{border-color:var(--red);color:var(--red);}
+.toast.i{border-color:var(--c1);color:var(--c1);}
+@keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+</style>
+</head>
+<body>
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="ic">🛡️</div>
+    <div><div class="tx">Admin Portal</div><div class="sub">CampusShuttle v3.0</div></div>
+  </div>
+  <nav class="sb-nav">
+    <button class="sb-item on" onclick="nav('overview',this)">📊 Overview</button>
+    <button class="sb-item" onclick="nav('shuttles',this)">🚌 Shuttle Fleet</button>
+    <button class="sb-item" onclick="nav('bookings',this)">📋 All Bookings</button>
+    <button class="sb-item" onclick="nav('analytics',this)">📈 Analytics</button>
+  </nav>
+  <div class="sb-bot">
+    <div class="user-chip">
+      <div class="av">A</div>
+      <div><div class="u-n">{{ username }}</div><div class="u-r">admin</div></div>
+    </div>
+    <button class="logout" onclick="location='/logout'">⏻ Sign Out</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="title" id="ptitle">📊 System Overview</div>
+     <div class="title" id="ptitle"> made by PUNIT 💖💖 </div>
+    <div class="live-pill"><div class="dot"></div> Live Admin · Auto-refresh</div>
+  </div>
+  <div class="content">
+
+<!-- ══ OVERVIEW ════════════════════════════════════════════ -->
+<div class="panel on" id="p-overview">
+  <div class="stats-row">
+    <div class="stat c1"><div class="lbl">Total Bookings</div><div class="val" id="ov-total">0</div><div class="sub">all time</div></div>
+    <div class="stat c3"><div class="lbl">On Board Now</div><div class="val" id="ov-onboard">0</div><div class="sub">active passengers</div></div>
+    <div class="stat y"><div class="lbl">Completed Trips</div><div class="val" id="ov-done">0</div><div class="sub">terminated</div></div>
+    <div class="stat c4"><div class="lbl">Revenue</div><div class="val" id="ov-rev">₹0</div><div class="sub">total collected</div></div>
+  </div>
+
+  <!-- Quick shuttle status cards -->
+  <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--m);text-transform:uppercase;letter-spacing:.8px;">🚌 Fleet Quick View</div>
+  <div id="overviewFleet" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:20px;"></div>
+
+  <!-- Recent bookings -->
+  <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--b);font-size:14px;font-weight:700;">📋 Recent Bookings</div>
+    <div style="overflow-x:auto;">
+      <table class="bk-table"><thead>
+        <tr><th>Boarding ID</th><th>Student</th><th>Shuttle</th><th>Route</th><th>Seat</th><th>Fare</th><th>Status</th><th>Time</th></tr>
+      </thead><tbody id="recentTable"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHUTTLE FLEET ═══════════════════════════════════════ -->
+<div class="panel" id="p-shuttles">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="font-size:16px;font-weight:700;">🚌 Shuttle Fleet — Full Manifest View</div>
+    <button class="btn-sm btn-run" onclick="loadShuttles()" style="padding:7px 14px;font-size:12px;">↻ Refresh</button>
+  </div>
+  <div class="shuttle-panels" id="shuttlePanels">
+    <div style="color:var(--m);font-size:13px;">Loading shuttles...</div>
+  </div>
+</div>
+
+<!-- ══ ALL BOOKINGS ════════════════════════════════════════ -->
+<div class="panel" id="p-bookings">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="font-size:16px;font-weight:700;">📋 All Bookings</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="bkSearch" placeholder="Search..." oninput="filterBookings()" style="background:var(--s);border:1px solid var(--b);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:7px 12px;border-radius:9px;outline:none;">
+      <button class="btn-sm btn-run" onclick="loadAllBookings()" style="padding:7px 14px;font-size:12px;">↻ Refresh</button>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table class="bk-table"><thead>
+        <tr><th>Boarding ID</th><th>Student</th><th>Shuttle</th><th>Driver</th><th>From → To</th><th>Seat</th><th>Fare</th><th>Status</th><th>Boarded</th><th>Terminated</th><th>Booked At</th></tr>
+      </thead><tbody id="allBkTable"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANALYTICS ═══════════════════════════════════════════ -->
+<div class="panel" id="p-analytics">
+  <div class="stats-row" style="margin-bottom:16px;" id="anStats"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;padding:18px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);margin-bottom:14px;">Revenue by Shuttle</div>
+      <div class="chart-wrap"><canvas id="revChart"></canvas></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--b);border-radius:16px;padding:18px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);margin-bottom:14px;">Booking Status Distribution</div>
+      <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const socket = io();
+let allBkData=[], charts={};
+
+const PTITLES={overview:'📊 System Overview',shuttles:'🚌 Shuttle Fleet',bookings:'📋 All Bookings',analytics:'📈 Analytics'};
+function nav(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.getElementById('p-'+name)?.classList.add('on');
+  btn.classList.add('on');
+  document.getElementById('ptitle').textContent=PTITLES[name]||name;
+  if(name==='shuttles') loadShuttles();
+  if(name==='bookings') loadAllBookings();
+  if(name==='analytics') loadAnalytics();
+}
+
+function toast(msg,t='i'){
+  const c=document.getElementById('toasts');
+  const d=document.createElement('div');d.className=`toast ${t}`;d.textContent=msg;c.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init(){
+  await Promise.all([loadStats(), loadOverview(), loadShuttles()]);
+  setInterval(()=>{ loadStats(); loadOverview(); loadShuttles(); }, 8000);
+}
+
+async function loadStats(){
+  const r=await fetch('/api/admin/stats');
+  const d=await r.json();
+  document.getElementById('ov-total').textContent   = d.total_bookings;
+  document.getElementById('ov-onboard').textContent = d.active;
+  document.getElementById('ov-done').textContent    = d.completed;
+  document.getElementById('ov-rev').textContent     = `₹${d.revenue}`;
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+async function loadOverview(){
+  const [sr,br] = await Promise.all([fetch('/api/admin/shuttles'), fetch('/api/admin/bookings')]);
+  const shuttles = await sr.json();
+  const bookings = (await br.json()).slice(0,10);
+
+  // Quick fleet cards
+  const fc=document.getElementById('overviewFleet'); if(!fc) return;
+  fc.innerHTML = shuttles.map(sh=>{
+    const pct=Math.round((sh.booked/sh.capacity)*100)||0;
+    const lc=pct>75?'var(--red)':pct>50?'var(--y)':'var(--c3)';
+    return `<div style="background:var(--card);border:1px solid var(--b);border-radius:13px;padding:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:20px;">🚌</div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c1);">${sh.id}</div>
+          <div style="font-size:13px;font-weight:700;">${sh.name}</div>
+        </div>
+        <span class="status-tag ${sh.status}" style="margin-left:auto;">${sh.status.replace('_',' ')}</span>
+      </div>
+      <div style="font-size:11px;color:var(--m);margin-bottom:6px;">👤 ${sh.driver_name||'—'} · 📍 ${sh.current_stop||'—'}</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;height:5px;background:var(--b);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${lc};border-radius:3px;"></div></div>
+        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:${lc};">${sh.available} free</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Recent bookings
+  const tb=document.getElementById('recentTable'); if(!tb) return;
+  if(!bookings.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--m);padding:20px;">No bookings yet.</td></tr>';return;}
+  tb.innerHTML=bookings.map(b=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c4);">${b.boarding_id}</td>
+    <td style="font-weight:600;">${b.student_name}</td>
+    <td>${b.shuttle_name||b.shuttle_id}</td>
+    <td>${b.from_stop} → ${b.to_stop}</td>
+    <td style="text-align:center;font-family:'JetBrains Mono',monospace;">${b.seat_no}</td>
+    <td style="color:var(--c3);font-weight:700;">₹${b.fare}</td>
+    <td><span class="spill ${b.status}">${b.status.replace('_',' ')}</span></td>
+    <td style="color:var(--m);font-size:11px;">${b.booked_at?.slice(0,16)||'—'}</td>
+  </tr>`).join('');
+}
+
+// ── Shuttle Fleet panels ──────────────────────────────────────────────────────
+async function loadShuttles(){
+  const r       = await fetch('/api/admin/shuttles');
+  const shuttles= await r.json();
+  const el      = document.getElementById('shuttlePanels'); if(!el) return;
+  if(!shuttles.length){el.innerHTML='<div style="color:var(--m);">No shuttles.</div>';return;}
+  el.innerHTML = shuttles.map(sh=>buildShuttlePanel(sh)).join('');
+}
+
+function buildShuttlePanel(sh){
+  const pct     = Math.round(((sh.booked||0)/sh.capacity)*100);
+  const lc      = pct>75?'var(--red)':pct>50?'var(--y)':'var(--c3)';
+  const manifest = sh.manifest||[];
+  const boarded  = manifest.filter(p=>p.status==='on_board').length;
+  const waiting  = manifest.filter(p=>p.status==='booked').length;
+  const done     = manifest.filter(p=>p.status==='completed').length;
+
+  const paxRows = manifest.length
+    ? manifest.map(p=>`
+      <div class="pax-mini ${p.status}">
+        <div class="seat-mini">${p.seat_no}</div>
+        <div class="pax-mini-info">
+          <div class="pax-mini-name">${p.student_name}</div>
+          <div class="pax-mini-route">${p.from_stop} → ${p.to_stop}</div>
+          <div class="pax-mini-bid">${p.boarding_id}</div>
+        </div>
+        <div class="status-dot ${p.status}" title="${p.status}"></div>
+        <span class="spill ${p.status}" style="font-size:9px;padding:2px 7px;">${p.status.replace('_',' ')}</span>
+      </div>`).join('')
+    : '<div style="color:var(--m);font-size:12px;text-align:center;padding:16px;">No passengers booked yet.</div>';
+
+  return `<div class="shuttle-panel">
+    <div class="sh-panel-hdr">
+      <div class="sh-badge">🚌</div>
+      <div class="sh-hdr-info">
+        <div class="sh-id">${sh.id}</div>
+        <div class="sh-name">${sh.name}</div>
+        <div class="sh-avail">
+          <div class="avail-track"><div class="avail-fill" style="width:${pct}%;background:${lc}"></div></div>
+          <span class="avail-num" style="color:${lc}">${sh.available} / ${sh.capacity} seats free</span>
+        </div>
+      </div>
+      <span class="status-tag ${sh.status}">${sh.status.replace('_',' ')}</span>
+    </div>
+
+    <!-- Driver info -->
+    <div class="driver-section">
+      <div class="driver-row">
+        <div class="driver-av">${(sh.driver_name||'?')[0]}</div>
+        <div class="driver-info">
+          <div class="name">👤 ${sh.driver_name||'No driver assigned'}</div>
+          <div class="meta">📞 ${sh.driver_phone||'—'} · 🚗 ${sh.model||'—'} · 🔑 ${sh.license_plate||'—'}</div>
+          <div class="meta">📍 Currently at: ${sh.current_stop||'Unknown'}</div>
+        </div>
+        <div class="sh-ctrl">
+          <button class="btn-sm btn-run" onclick="setShuttleStatus('${sh.id}','running')">▶ Run</button>
+          <button class="btn-sm btn-stop" onclick="setShuttleStatus('${sh.id}','at_stop')">🚏 Stop</button>
+          <button class="btn-sm btn-off" onclick="setShuttleStatus('${sh.id}','off_duty')">Off</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Passenger manifest -->
+    <div style="padding:10px 16px 4px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--m);">Passenger Manifest</div>
+      <div style="display:flex;gap:10px;font-size:11px;font-family:'JetBrains Mono',monospace;">
+        <span style="color:var(--c4)">⏳ ${waiting} waiting</span>
+        <span style="color:var(--c3)">✓ ${boarded} on board</span>
+        <span style="color:var(--y)">🏁 ${done} done</span>
+      </div>
+    </div>
+    <div class="pax-mini-list">${paxRows}</div>
+    <div class="sh-footer">
+      <span>Total booked: ${manifest.length} / ${sh.capacity}</span>
+      <span style="color:${lc}">Load: ${pct}%</span>
+    </div>
+  </div>`;
+}
+
+async function setShuttleStatus(id, status){
+  const stop = prompt(`Current stop for ${id}:`,'')||'';
+  const r = await fetch('/api/admin/shuttle_status',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({shuttle_id:id,status,current_stop:stop})});
+  if((await r.json()).ok){ toast(`${id} → ${status}`,'s'); loadShuttles(); }
+}
+
+// ── All Bookings ──────────────────────────────────────────────────────────────
+async function loadAllBookings(){
+  const r   = await fetch('/api/admin/bookings');
+  allBkData = await r.json();
+  renderBkTable(allBkData);
+}
+
+function renderBkTable(data){
+  const tb=document.getElementById('allBkTable'); if(!tb) return;
+  if(!data.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--m);padding:20px;">No bookings.</td></tr>';return;}
+  tb.innerHTML=data.map(b=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c4);">${b.boarding_id}</td>
+    <td style="font-weight:600;">${b.student_name}</td>
+    <td>${b.shuttle_name||b.shuttle_id}</td>
+    <td>${b.driver_name||'—'}</td>
+    <td>${b.from_stop} → ${b.to_stop}</td>
+    <td style="text-align:center;font-family:'JetBrains Mono',monospace;">${b.seat_no}</td>
+    <td style="color:var(--c3);font-weight:700;">₹${b.fare}</td>
+    <td><span class="spill ${b.status}">${b.status.replace('_',' ')}</span></td>
+    <td style="color:var(--m);font-size:11px;">${b.boarded_at?.slice(0,16)||'—'}</td>
+    <td style="color:var(--m);font-size:11px;">${b.terminated_at?.slice(0,16)||'—'}</td>
+    <td style="color:var(--m);font-size:11px;">${b.booked_at?.slice(0,16)||'—'}</td>
+  </tr>`).join('');
+}
+
+function filterBookings(){
+  const q=document.getElementById('bkSearch').value.toLowerCase();
+  if(!q){renderBkTable(allBkData);return;}
+  renderBkTable(allBkData.filter(b=>
+    b.boarding_id.toLowerCase().includes(q)||
+    b.student_name.toLowerCase().includes(q)||
+    (b.shuttle_name||'').toLowerCase().includes(q)||
+    b.from_stop.toLowerCase().includes(q)||
+    b.to_stop.toLowerCase().includes(q)||
+    (b.driver_name||'').toLowerCase().includes(q)
+  ));
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+async function loadAnalytics(){
+  const [sr,br] = await Promise.all([fetch('/api/admin/shuttles'),fetch('/api/admin/bookings')]);
+  const shuttles= await sr.json();
+  const bookings= await br.json();
+
+  // Stat tiles
+  const rev = bookings.reduce((a,b)=>a+(b.status!=='cancelled'?+b.fare:0),0);
+  document.getElementById('anStats').innerHTML=`
+    <div class="stat c1"><div class="lbl">Total Bookings</div><div class="val">${bookings.length}</div></div>
+    <div class="stat c3"><div class="lbl">Completed</div><div class="val">${bookings.filter(b=>b.status==='completed').length}</div></div>
+    <div class="stat y"><div class="lbl">Cancelled</div><div class="val">${bookings.filter(b=>b.status==='cancelled').length}</div></div>
+    <div class="stat c4"><div class="lbl">Revenue</div><div class="val" style="font-size:18px;">₹${rev.toFixed(0)}</div></div>`;
+
+  const CO={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#5a4a7a',font:{family:'Outfit'}}}},
+    scales:{x:{ticks:{color:'#5a4a7a'},grid:{color:'#1e1035'}},y:{ticks:{color:'#5a4a7a'},grid:{color:'#1e1035'}}}};
+
+  // Revenue per shuttle
+  const revByShuttle={};
+  bookings.filter(b=>b.status!=='cancelled').forEach(b=>{
+    revByShuttle[b.shuttle_name||b.shuttle_id]=(revByShuttle[b.shuttle_name||b.shuttle_id]||0)+b.fare;
+  });
+  mkChart('revChart','bar',
+    Object.keys(revByShuttle),
+    [{label:'Revenue (₹)',data:Object.values(revByShuttle).map(v=>+v.toFixed(2)),backgroundColor:'rgba(139,92,246,.5)',borderColor:'#8b5cf6',borderWidth:1}],CO);
+
+  // Status donut
+  const statCts={booked:0,on_board:0,completed:0,cancelled:0};
+  bookings.forEach(b=>{statCts[b.status]=(statCts[b.status]||0)+1;});
+  mkChart('statusChart','doughnut',
+    ['Booked','On Board','Completed','Cancelled'],
+    [{data:[statCts.booked,statCts.on_board,statCts.completed,statCts.cancelled],
+      backgroundColor:['rgba(14,165,233,.6)','rgba(16,185,129,.6)','rgba(245,158,11,.6)','rgba(244,63,94,.5)'],
+      borderColor:['#0ea5e9','#10b981','#f59e0b','#f43f5e'],borderWidth:1}],
+    {responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5a4a7a',font:{family:'Outfit'}}}}});
+}
+
+function mkChart(id,type,labels,datasets,options){
+  const ctx=document.getElementById(id)?.getContext('2d'); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options});
+}
+
+// ── Socket ────────────────────────────────────────────────────────────────────
+socket.on('booking_update', ()=>{ loadOverview(); loadShuttles(); toast('New booking received!','i'); });
+socket.on('manifest_update', d=>{ loadShuttles(); toast(`Passenger ${d.action}: ${d.boarding_id}`,'s'); });
+socket.on('shuttle_update',  ()=>{ loadShuttles(); });
+
+init();
+</script>
+</body>
+</html>
