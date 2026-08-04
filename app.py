@@ -4,7 +4,7 @@ Flask + SocketIO — Student booking flow, Driver manifest, Admin portal
 """
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from flask_socketio import SocketIO, emit
-import hashlib, time, threading, json
+import hashlib, time, threading, json, os
 from db import (init_db, conn, hp, get_route_info, get_shuttle_availability,
                 create_booking, get_my_bookings, get_shuttle_manifest,
                 mark_boarded, mark_terminated, cancel_booking,
@@ -12,7 +12,7 @@ from db import (init_db, conn, hp, get_route_info, get_shuttle_availability,
                 get_stops_list, get_driver_shuttle, get_stats, gen_boarding_id)
 
 app = Flask(__name__)
-app.secret_key = "csms_v3_secret_2025"
+app.secret_key = os.environ.get("CSMS_SECRET_KEY", "dev-only-change-me")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -255,4 +255,3 @@ if __name__ == '__main__':
     print("   → http://localhost:5000")
     print("   Logins: admin/admin123 | driver1/driver123 | student1/student123")
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
-  
